@@ -144,14 +144,18 @@ async function findOptimalCompression() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    let bestBlob = null;
-    let bestScore = Infinity;
-    let bestDimensions = { w: originalImage.width, h: originalImage.height };
+    // We track the best result UNDER target separately from the closest overall
+    let bestUnderBlob = null;
+    let bestUnderDimensions = null;
+
+    let closestBlob = null;
+    let closestScore = Infinity;
+    let closestDimensions = { w: originalImage.width, h: originalImage.height };
 
     // Two-pass approach: first pass reduces quality, second pass reduces dimensions
     const strategies = [];
-    for (let q = 0.95; q >= 0.05; q -= 0.1) strategies.push({ scale: 1.0, quality: parseFloat(q.toFixed(2)) });
-    for (let s = 0.85; s >= 0.1; s -= 0.15) strategies.push({ scale: parseFloat(s.toFixed(2)), quality: 0.75 });
+    for (let q = 0.95; q >= 0.05; q -= 0.05) strategies.push({ scale: 1.0, quality: parseFloat(q.toFixed(2)) });
+    for (let s = 0.85; s >= 0.05; s -= 0.1) strategies.push({ scale: parseFloat(s.toFixed(2)), quality: 0.8 });
 
     for (const { scale, quality } of strategies) {
         canvas.width = Math.round(originalImage.width * scale);
@@ -162,16 +166,29 @@ async function findOptimalCompression() {
         const blob = await canvasToBlob(canvas, mimeType, quality);
         if (!blob) continue;
 
+        // Track closest result (for fallback)
         const score = Math.abs(blob.size - targetBytes);
-        if (score < bestScore) {
-            bestBlob = blob;
-            bestScore = score;
-            bestDimensions = { w: canvas.width, h: canvas.height };
+        if (score < closestScore) {
+            closestBlob = blob;
+            closestScore = score;
+            closestDimensions = { w: canvas.width, h: canvas.height };
         }
 
-        // Stop as soon as we hit under the target
-        if (blob.size <= targetBytes) break;
+        // If this result is UNDER the target, it's a valid candidate — keep the largest one under target
+        if (blob.size <= targetBytes) {
+            if (!bestUnderBlob || blob.size > bestUnderBlob.size) {
+                bestUnderBlob = blob;
+                bestUnderDimensions = { w: canvas.width, h: canvas.height };
+            }
+            // We have a valid result; keep going a tiny bit to find a better quality match
+            // but stop if we've already reduced significantly
+            if (blob.size < targetBytes * 0.5) break;
+        }
     }
+
+    // Prefer the best UNDER-target result; fall back to closest if impossible
+    const bestBlob = bestUnderBlob || closestBlob;
+    const bestDimensions = bestUnderDimensions || closestDimensions;
 
     // Prevent inflation: if compressed is bigger than original, keep original
     let finalBlob = bestBlob;
