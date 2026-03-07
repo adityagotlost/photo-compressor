@@ -1,5 +1,7 @@
 # 📸 Sleek Photo Compressor
 
+[**Live Demo**](https://adityagotlost.github.io/photo-compressor/)
+
 A fast, privacy-first, browser-based image compression tool. No uploads, no servers — everything happens locally on your device.
 
 ---
@@ -14,7 +16,7 @@ A fast, privacy-first, browser-based image compression tool. No uploads, no serv
 - 💾 **One-Click Download** — Downloads the compressed image with a clean, auto-generated filename
 - 🖱️ **Drag & Drop Support** — Upload images by dragging them onto the page or clicking to browse
 - 🛡️ **Inflation Guard** — Automatically keeps the original file if compression would make it larger
-- 📐 **Large Image Handling** — Caps working resolution at 2048px on the longest side to prevent browser crashes on 4K/8K images
+- 📐 **Large Image Handling** — Caps working resolution at 4096px on the longest side to prevent browser crashes on 4K/8K images while preserving high details
 
 ---
 
@@ -42,7 +44,7 @@ photo-compressor/
 The algorithm performs up to **7 iterations** of binary search on the JPEG/WebP quality parameter (`0.05` → `0.95`) at the capped resolution. It stops early if the result is within **3%** of the target size.
 
 ### Phase 2 — Scale Binary Search (fallback)
-If quality search alone can't reach the target (e.g. the target is very small), a second binary search on the **image scale** (resolution reduction) kicks in with up to **6 more iterations** at a fixed quality of `0.75`.
+If quality search alone can't reach the target (e.g. the target is very small), a second binary search on the **image scale** (resolution reduction) kicks in with up to **6 more iterations** at a lower quality base of `0.50` (to preserve dimensions over pixel sharpness when needed).
 
 This two-phase approach finds optimal compression settings in typically **under 1 second**, even for large images.
 
