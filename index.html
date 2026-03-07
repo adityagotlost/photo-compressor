@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleek Photo Compressor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    
+    <div class="background-decorations">
+        <div class="glow-sphere sphere-1"></div>
+        <div class="glow-sphere sphere-2"></div>
+    </div>
+
+    <div class="app-container">
+        
+        <header>
+            <h1>Photo <span>Compressor</span></h1>
+            <p>Optimize your images instantly, right in your browser. 100% private.</p>
+        </header>
+
+        <main>
+            
+            <div id="uploadZone" class="upload-zone">
+                <input type="file" id="fileInput" accept="image/jpeg, image/png, image/webp">
+                <div class="upload-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="upload-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <p class="upload-title">Drag & Drop Image</p>
+                    <p class="upload-subtitle">or click to browse files</p>
+                    <span class="supported-formats">JPEG, PNG, WebP (Max 10MB)</span>
+                </div>
+            </div>
+
+            <!-- Workspace: Settings & Preview (Hidden initially) -->
+            <div id="workspace" class="workspace hidden">
+                
+                <div class="settings-panel">
+                    <h3>Compression Settings</h3>
+                    
+                    <div class="setting-group">
+                        <div class="setting-header">
+                            <label for="qualitySlider">Quality</label>
+                            <span id="qualityValue">80%</span>
+                        </div>
+                        <input type="range" id="qualitySlider" min="0" max="1" step="0.01" value="0.8">
+                        <p class="setting-hint">Lower quality = smaller file size</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <div class="setting-header">
+                            <label for="formatSelect">Output Format</label>
+                        </div>
+                        <select id="formatSelect">
+                            <option value="image/jpeg">JPEG</option>
+                            <option value="image/webp" selected>WebP (Recommended)</option>
+                            <option value="image/png">PNG</option>
+                        </select>
+                    </div>
+
+                     <div class="action-buttons">
+                        <button id="downloadBtn" class="primary-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Download Compressed Image
+                        </button>
+                        <button id="resetBtn" class="secondary-btn">Compress Another File</button>
+                    </div>
+
+                </div>
+
+                <div class="preview-panel">
+                    <h3>Comparison</h3>
+                    <div class="comparison-container">
+                        
+                        <div class="image-box original-box">
+                            <span class="badge original-badge">Original</span>
+                            <img id="originalPreview" src="" alt="Original Image">
+                            <div class="stats">
+                                <span class="stat-label">Size:</span> <span id="originalSize">0 KB</span>
+                            </div>
+                        </div>
+
+                        <div class="image-box compressed-box">
+                             <span class="badge compressed-badge">Compressed</span>
+                            <img id="compressedPreview" src="" alt="Compressed Image">
+                            <div class="stats">
+                                <span class="stat-label">Size:</span> <span id="compressedSize" class="highlight-stat">0 KB</span>
+                                <span class="savings" id="savingsBadge">-0%</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
