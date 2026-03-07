@@ -137,36 +137,52 @@ function canvasToBlob(canvas, mimeType, quality) {
     return new Promise(resolve => canvas.toBlob(resolve, mimeType, quality));
 }
 
+// Cap max working resolution to prevent browser crash on large/8K images
+const MAX_WORKING_PX = 2048;
+
+function getWorkingScale() {
+    const longest = Math.max(originalImage.width, originalImage.height);
+    if (longest <= MAX_WORKING_PX) return 1.0;
+    return MAX_WORKING_PX / longest;
+}
+
 async function findOptimalCompression() {
     const targetBytes = getTargetBytes();
     const mimeType = formatSelect.value;
 
+    const capScale = getWorkingScale(); // e.g. 0.26 for an 8K image
+    const baseW = Math.round(originalImage.width * capScale);
+    const baseH = Math.round(originalImage.height * capScale);
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    // We track the best result UNDER target separately from the closest overall
     let bestUnderBlob = null;
     let bestUnderDimensions = null;
-
     let closestBlob = null;
     let closestScore = Infinity;
     let closestDimensions = { w: originalImage.width, h: originalImage.height };
 
-    // Two-pass approach: first pass reduces quality, second pass reduces dimensions
+    // Build strategy list: progressively more aggressive
+    // Phase 1: full capped resolution, decreasing quality
+    // Phase 2: decreasing resolution at moderate quality
     const strategies = [];
-    for (let q = 0.95; q >= 0.05; q -= 0.05) strategies.push({ scale: 1.0, quality: parseFloat(q.toFixed(2)) });
-    for (let s = 0.85; s >= 0.05; s -= 0.1) strategies.push({ scale: parseFloat(s.toFixed(2)), quality: 0.8 });
+    for (let q = 0.92; q >= 0.05; q -= 0.06) {
+        strategies.push({ wScale: 1.0, quality: parseFloat(q.toFixed(2)) });
+    }
+    for (let s = 0.85; s >= 0.05; s -= 0.1) {
+        strategies.push({ wScale: parseFloat(s.toFixed(2)), quality: 0.7 });
+    }
 
-    for (const { scale, quality } of strategies) {
-        canvas.width = Math.round(originalImage.width * scale);
-        canvas.height = Math.round(originalImage.height * scale);
+    for (const { wScale, quality } of strategies) {
+        canvas.width = Math.round(baseW * wScale);
+        canvas.height = Math.round(baseH * wScale);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
 
         const blob = await canvasToBlob(canvas, mimeType, quality);
         if (!blob) continue;
 
-        // Track closest result (for fallback)
         const score = Math.abs(blob.size - targetBytes);
         if (score < closestScore) {
             closestBlob = blob;
@@ -174,19 +190,17 @@ async function findOptimalCompression() {
             closestDimensions = { w: canvas.width, h: canvas.height };
         }
 
-        // If this result is UNDER the target, it's a valid candidate — keep the largest one under target
         if (blob.size <= targetBytes) {
+            // Keep the largest (best quality) result that is still under target
             if (!bestUnderBlob || blob.size > bestUnderBlob.size) {
                 bestUnderBlob = blob;
                 bestUnderDimensions = { w: canvas.width, h: canvas.height };
             }
-            // We have a valid result; keep going a tiny bit to find a better quality match
-            // but stop if we've already reduced significantly
+            // Stop early if we've over-compressed past 50% of target – good enough
             if (blob.size < targetBytes * 0.5) break;
         }
     }
 
-    // Prefer the best UNDER-target result; fall back to closest if impossible
     const bestBlob = bestUnderBlob || closestBlob;
     const bestDimensions = bestUnderDimensions || closestDimensions;
 
