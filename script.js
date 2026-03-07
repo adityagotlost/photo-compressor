@@ -157,6 +157,54 @@ async function findOptimalCompression() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
+    // Simple unsharp mask to improve text legibility on downscaled images
+    function applySharpen(ctx, w, h) {
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const data = imageData.data;
+        const width = imageData.width;
+
+        // Very lightweight 3x3 sharpen kernel
+        const kernel = [
+            0, -1, 0,
+            -1, 5, -1,
+            0, -1, 0
+        ];
+
+        const side = Math.round(Math.sqrt(kernel.length));
+        const halfSide = Math.floor(side / 2);
+
+        // We need a copy of the original data to read from while we write to `data`
+        const src = new Uint8ClampedArray(data);
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const dstOff = (y * width + x) * 4;
+                let r = 0, g = 0, b = 0;
+
+                for (let cy = 0; cy < side; cy++) {
+                    for (let cx = 0; cx < side; cx++) {
+                        const scy = y + cy - halfSide;
+                        const scx = x + cx - halfSide;
+
+                        if (scy >= 0 && scy < h && scx >= 0 && scx < w) {
+                            const srcOff = (scy * width + scx) * 4;
+                            const wt = kernel[cy * side + cx];
+                            r += src[srcOff] * wt;
+                            g += src[srcOff + 1] * wt;
+                            b += src[srcOff + 2] * wt;
+                        }
+                    }
+                }
+
+                // Mix the sharpened pixel with the original to prevent over-sharpening (50% strength)
+                data[dstOff] = data[dstOff] + (r - data[dstOff]) * 0.5;
+                data[dstOff + 1] = data[dstOff + 1] + (g - data[dstOff + 1]) * 0.5;
+                data[dstOff + 2] = data[dstOff + 2] + (b - data[dstOff + 2]) * 0.5;
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
     // --- Phase 1: Binary search on quality at the capped resolution (~5-7 iterations) ---
     let lo = 0.05, hi = 0.95;
     let bestUnderBlob = null, bestUnderDimensions = null;
@@ -168,6 +216,12 @@ async function findOptimalCompression() {
         canvas.height = h;
         ctx.clearRect(0, 0, w, h);
         ctx.drawImage(originalImage, 0, 0, w, h);
+
+        // Only apply sharpening if we downscaled by a significant margin (less than 80% of original scale)
+        if (w < originalImage.width * 0.8) {
+            applySharpen(ctx, w, h);
+        }
+
         return canvasToBlob(canvas, mimeType, q);
     }
 
