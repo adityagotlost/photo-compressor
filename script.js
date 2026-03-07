@@ -145,15 +145,27 @@ function compressImage() {
     canvas.toBlob((blob) => {
         if (!blob) return;
 
+        // If the resulting "compressed" blob is actually larger than the original file,
+        // and the user didn't change the dimensions, just use the original file to prevent inflation.
+        let finalBlob = blob;
+        let finalMimeType = mimeType;
+
+        if (blob.size > originalFileSize && scale === 1 && quality > 0.7) {
+            finalBlob = currentFile;
+            finalMimeType = currentFile.type;
+            // Update format select to reflect we kept the original format
+            formatSelect.value = finalMimeType;
+        }
+
         // Cleanup old blob URL
         if (compressedBlobUrl) URL.revokeObjectURL(compressedBlobUrl);
 
         // Create new preview
-        compressedBlobUrl = URL.createObjectURL(blob);
+        compressedBlobUrl = URL.createObjectURL(finalBlob);
         compressedPreview.src = compressedBlobUrl;
 
         // Update Stats
-        updateStats(blob.size);
+        updateStats(finalBlob.size);
 
         // Update Compressed Dimensions UI
         compressedDimensionsVal.textContent = `${canvas.width} x ${canvas.height} px`;
