@@ -437,6 +437,17 @@ button {
     color: var(--danger-color);
 }
 
+.dimension-stat {
+    background: rgba(255,255,255,0.02);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    display: flex;
+    justify-content: space-between;
+}
+
 /* Responsive Design */
 @media (max-width: 900px) {
     .workspace {

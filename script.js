@@ -6,12 +6,17 @@ const workspace = document.getElementById('workspace');
 const qualitySlider = document.getElementById('qualitySlider');
 const qualityValue = document.getElementById('qualityValue');
 const formatSelect = document.getElementById('formatSelect');
+const scaleSlider = document.getElementById('scaleSlider');
+const scaleValue = document.getElementById('scaleValue');
+const dimensionHint = document.getElementById('dimensionHint');
 
 const originalPreview = document.getElementById('originalPreview');
 const compressedPreview = document.getElementById('compressedPreview');
 const originalSizeLabel = document.getElementById('originalSize');
 const compressedSizeLabel = document.getElementById('compressedSize');
 const savingsBadge = document.getElementById('savingsBadge');
+const originalDimensionsVal = document.getElementById('originalDimensionsVal');
+const compressedDimensionsVal = document.getElementById('compressedDimensionsVal');
 
 const downloadBtn = document.getElementById('downloadBtn');
 const resetBtn = document.getElementById('resetBtn');
@@ -60,6 +65,18 @@ function setupEventListeners() {
         if (originalImage) compressImage();
     });
 
+    scaleSlider.addEventListener('input', (e) => {
+        const percent = Math.round(e.target.value * 100);
+        scaleValue.textContent = `${percent}%`;
+
+        if (originalImage) {
+            const newWidth = Math.round(originalImage.width * e.target.value);
+            const newHeight = Math.round(originalImage.height * e.target.value);
+            dimensionHint.textContent = `${newWidth} x ${newHeight} px`;
+            compressImage();
+        }
+    });
+
     formatSelect.addEventListener('change', () => {
         if (originalImage) compressImage();
     });
@@ -88,6 +105,14 @@ function handleFile(file) {
         // Load into an Image object for canvas manipulation
         originalImage = new Image();
         originalImage.onload = () => {
+            // Set Original Dimensions in UI
+            originalDimensionsVal.textContent = `${originalImage.width} x ${originalImage.height} px`;
+
+            // Set initial scale hint
+            scaleSlider.value = 1;
+            scaleValue.textContent = "100%";
+            dimensionHint.textContent = `${originalImage.width} x ${originalImage.height} px`;
+
             // Show workspace
             uploadZone.style.display = 'none';
             workspace.classList.remove('hidden');
@@ -102,18 +127,18 @@ function handleFile(file) {
 
 function compressImage() {
     const quality = parseFloat(qualitySlider.value);
+    const scale = parseFloat(scaleSlider.value);
     const mimeType = formatSelect.value;
 
     // Create an off-screen canvas
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    // For this simple version, we stick to original dimensions. 
-    // You could easily add width/height resizing here.
-    canvas.width = originalImage.width;
-    canvas.height = originalImage.height;
+    // Apply scale for width and height
+    canvas.width = Math.round(originalImage.width * scale);
+    canvas.height = Math.round(originalImage.height * scale);
 
-    // Draw the image to canvas
+    // Draw the image to canvas at new dimensions
     ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
 
     // Compress to Blob
@@ -129,6 +154,9 @@ function compressImage() {
 
         // Update Stats
         updateStats(blob.size);
+
+        // Update Compressed Dimensions UI
+        compressedDimensionsVal.textContent = `${canvas.width} x ${canvas.height} px`;
 
     }, mimeType, quality);
 }
