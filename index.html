@@ -41,20 +41,23 @@
                     
                     <div class="setting-group" id="targetSizeGroup">
                         <div class="setting-header">
-                            <label for="targetSizeSelect">Target File Size</label>
+                            <label for="customSizeInput">Target File Size</label>
                             <span id="targetStatusText" class="status-badge">Ready</span>
                         </div>
-                        <select id="targetSizeSelect">
-                            <option value="10">Under 10 KB (Aggressive)</option>
-                            <option value="20">Under 20 KB</option>
-                            <option value="50">Under 50 KB</option>
-                            <option value="100" selected>Under 100 KB</option>
-                            <option value="200">Under 200 KB</option>
-                            <option value="500">Under 500 KB (High Quality)</option>
-                            <option value="custom">Custom Size...</option>
-                        </select>
-                        <input type="number" id="customSizeInput" class="hidden-input" placeholder="Enter target in KB (e.g. 150)">
-                        <p class="setting-hint">We will automatically adjust quality/dimensions to hit this target.</p>
+                        
+                        <div class="preset-pills">
+                            <button type="button" class="preset-pill" data-size="10">10 KB</button>
+                            <button type="button" class="preset-pill" data-size="50">50 KB</button>
+                            <button type="button" class="preset-pill active" data-size="100">100 KB</button>
+                            <button type="button" class="preset-pill" data-size="500">500 KB</button>
+                            <button type="button" class="preset-pill" data-size="max">Max</button>
+                        </div>
+
+                        <div class="custom-size-wrapper">
+                            <input type="number" id="customSizeInput" value="100" min="1" max="50000">
+                            <span class="size-unit">KB</span>
+                        </div>
+                        <p class="setting-hint">We will automatically perfect the compression to hit this size.</p>
                     </div>
 
                     <div class="setting-group">

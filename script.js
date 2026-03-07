@@ -6,8 +6,8 @@ const workspace = document.getElementById('workspace');
 const qualitySlider = document.getElementById('qualitySlider');
 const qualityValue = document.getElementById('qualityValue');
 const formatSelect = document.getElementById('formatSelect');
-const targetSizeSelect = document.getElementById('targetSizeSelect');
 const customSizeInput = document.getElementById('customSizeInput');
+const presetPills = document.querySelectorAll('.preset-pill');
 const targetStatusText = document.getElementById('targetStatusText');
 
 const originalPreview = document.getElementById('originalPreview');
@@ -60,13 +60,28 @@ function setupEventListeners() {
     });
 
     // Settings Changes
-    targetSizeSelect.addEventListener('change', (e) => {
-        if (e.target.value === 'custom') {
-            customSizeInput.classList.add('visible');
-        } else {
-            customSizeInput.classList.remove('visible');
+    presetPills.forEach(pill => {
+        pill.addEventListener('click', (e) => {
+            // Update active state
+            presetPills.forEach(p => p.classList.remove('active'));
+            e.target.classList.add('active');
+
+            // Apply value to input
+            const size = e.target.getAttribute('data-size');
+            if (size === 'max') {
+                // Use a very high number to essentially mean "don't compress"
+                customSizeInput.value = Math.ceil(originalFileSize / 1024) || 10000;
+            } else {
+                customSizeInput.value = size;
+            }
+
             if (originalImage) startTargetCompression();
-        }
+        });
+    });
+
+    customSizeInput.addEventListener('input', () => {
+        // Remove active state from pills if manually typing
+        presetPills.forEach(p => p.classList.remove('active'));
     });
 
     customSizeInput.addEventListener('change', () => {
@@ -116,12 +131,9 @@ function handleFile(file) {
 }
 
 function getTargetKB() {
-    if (targetSizeSelect.value === 'custom') {
-        const val = parseFloat(customSizeInput.value);
-        if (isNaN(val) || val <= 0) return originalFileSize / 1024; // Default to original if invalid
-        return val;
-    }
-    return parseFloat(targetSizeSelect.value);
+    const val = parseFloat(customSizeInput.value);
+    if (isNaN(val) || val <= 0) return originalFileSize / 1024 || 50000;
+    return val;
 }
 
 async function startTargetCompression() {
@@ -130,7 +142,8 @@ async function startTargetCompression() {
     targetStatusText.className = "status-badge working";
 
     // Disable inputs while working
-    targetSizeSelect.disabled = true;
+    customSizeInput.disabled = true;
+    presetPills.forEach(p => p.disabled = true);
     formatSelect.disabled = true;
 
     try {
@@ -142,7 +155,8 @@ async function startTargetCompression() {
         targetStatusText.textContent = "Best Effort";
         targetStatusText.className = "status-badge error";
     } finally {
-        targetSizeSelect.disabled = false;
+        customSizeInput.disabled = false;
+        presetPills.forEach(p => p.disabled = false);
         formatSelect.disabled = false;
     }
 }

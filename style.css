@@ -273,27 +273,6 @@ input[type=range]::-webkit-slider-runnable-track {
     color: var(--text-muted);
 }
 
-.hidden-input {
-    display: none;
-    width: 100%;
-    padding: 12px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: #fff;
-    font-size: 0.95rem;
-    outline: none;
-    margin-top: 10px;
-}
-
-.hidden-input.visible {
-    display: block;
-}
-
-.hidden-input:focus {
-    border-color: var(--primary-color);
-}
-
 .status-badge {
     font-size: 0.75rem;
     padding: 3px 8px;
@@ -319,6 +298,69 @@ input[type=range]::-webkit-slider-runnable-track {
     0% { opacity: 0.6; }
     50% { opacity: 1; }
     100% { opacity: 0.6; }
+}
+
+/* Preset Pills & Custom Input */
+.preset-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+}
+
+.preset-pill {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--transition);
+    width: auto;
+}
+
+.preset-pill:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+
+.preset-pill.active {
+    background: rgba(88, 166, 255, 0.15);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.custom-size-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.custom-size-wrapper input {
+    width: 100%;
+    padding: 12px;
+    padding-right: 40px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+    transition: var(--transition);
+}
+
+.custom-size-wrapper input:focus {
+    border-color: var(--primary-color);
+    background: rgba(0,0,0,0.5);
+}
+
+.size-unit {
+    position: absolute;
+    right: 15px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    pointer-events: none;
 }
 
 /* Select Input */
