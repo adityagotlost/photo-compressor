@@ -157,47 +157,59 @@ async function findOptimalCompression() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    let bestUnderBlob = null;
-    let bestUnderDimensions = null;
-    let closestBlob = null;
-    let closestScore = Infinity;
-    let closestDimensions = { w: originalImage.width, h: originalImage.height };
+    // --- Phase 1: Binary search on quality at the capped resolution (~5-7 iterations) ---
+    let lo = 0.05, hi = 0.95;
+    let bestUnderBlob = null, bestUnderDimensions = null;
+    let closestBlob = null, closestScore = Infinity;
+    let closestDimensions = { w: baseW, h: baseH };
 
-    // Build strategy list: progressively more aggressive
-    // Phase 1: full capped resolution, decreasing quality
-    // Phase 2: decreasing resolution at moderate quality
-    const strategies = [];
-    for (let q = 0.92; q >= 0.05; q -= 0.06) {
-        strategies.push({ wScale: 1.0, quality: parseFloat(q.toFixed(2)) });
-    }
-    for (let s = 0.85; s >= 0.05; s -= 0.1) {
-        strategies.push({ wScale: parseFloat(s.toFixed(2)), quality: 0.7 });
+    async function tryEncode(w, h, q) {
+        canvas.width = w;
+        canvas.height = h;
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(originalImage, 0, 0, w, h);
+        return canvasToBlob(canvas, mimeType, q);
     }
 
-    for (const { wScale, quality } of strategies) {
-        canvas.width = Math.round(baseW * wScale);
-        canvas.height = Math.round(baseH * wScale);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
-
-        const blob = await canvasToBlob(canvas, mimeType, quality);
-        if (!blob) continue;
+    for (let i = 0; i < 7; i++) {
+        const mid = parseFloat(((lo + hi) / 2).toFixed(3));
+        const blob = await tryEncode(baseW, baseH, mid);
+        if (!blob) break;
 
         const score = Math.abs(blob.size - targetBytes);
-        if (score < closestScore) {
-            closestBlob = blob;
-            closestScore = score;
-            closestDimensions = { w: canvas.width, h: canvas.height };
-        }
+        if (score < closestScore) { closestBlob = blob; closestScore = score; closestDimensions = { w: baseW, h: baseH }; }
 
         if (blob.size <= targetBytes) {
-            // Keep the largest (best quality) result that is still under target
-            if (!bestUnderBlob || blob.size > bestUnderBlob.size) {
+            bestUnderBlob = blob;
+            bestUnderDimensions = { w: baseW, h: baseH };
+            lo = mid; // go higher quality
+        } else {
+            hi = mid; // go lower quality
+        }
+        if (score < targetBytes * 0.03) break; // within 3% — good enough, stop early
+    }
+
+    // --- Phase 2: Only if quality alone couldn't hit target — binary search on scale ---
+    if (!bestUnderBlob) {
+        let scLo = 0.1, scHi = 0.9;
+        for (let i = 0; i < 6; i++) {
+            const sc = parseFloat(((scLo + scHi) / 2).toFixed(3));
+            const w = Math.round(baseW * sc);
+            const h = Math.round(baseH * sc);
+            const blob = await tryEncode(w, h, 0.75);
+            if (!blob) break;
+
+            const score = Math.abs(blob.size - targetBytes);
+            if (score < closestScore) { closestBlob = blob; closestScore = score; closestDimensions = { w, h }; }
+
+            if (blob.size <= targetBytes) {
                 bestUnderBlob = blob;
-                bestUnderDimensions = { w: canvas.width, h: canvas.height };
+                bestUnderDimensions = { w, h };
+                scLo = sc; // try higher scale (better quality)
+            } else {
+                scHi = sc; // shrink more
             }
-            // Stop early if we've over-compressed past 50% of target – good enough
-            if (blob.size < targetBytes * 0.5) break;
+            if (score < targetBytes * 0.03) break;
         }
     }
 
