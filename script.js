@@ -138,7 +138,7 @@ function canvasToBlob(canvas, mimeType, quality) {
 }
 
 // Cap max working resolution to prevent browser crash on large/8K images
-const MAX_WORKING_PX = 2048;
+const MAX_WORKING_PX = 4096;
 
 function getWorkingScale() {
     const longest = Math.max(originalImage.width, originalImage.height);
@@ -196,7 +196,8 @@ async function findOptimalCompression() {
             const sc = parseFloat(((scLo + scHi) / 2).toFixed(3));
             const w = Math.round(baseW * sc);
             const h = Math.round(baseH * sc);
-            const blob = await tryEncode(w, h, 0.75);
+            // Use 0.5 quality instead of 0.75 to preserve resolution better when meeting tight size constraints
+            const blob = await tryEncode(w, h, 0.5);
             if (!blob) break;
 
             const score = Math.abs(blob.size - targetBytes);
