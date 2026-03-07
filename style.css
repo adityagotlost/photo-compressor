@@ -273,6 +273,54 @@ input[type=range]::-webkit-slider-runnable-track {
     color: var(--text-muted);
 }
 
+.hidden-input {
+    display: none;
+    width: 100%;
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.95rem;
+    outline: none;
+    margin-top: 10px;
+}
+
+.hidden-input.visible {
+    display: block;
+}
+
+.hidden-input:focus {
+    border-color: var(--primary-color);
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    color: var(--text-muted);
+}
+.status-badge.working {
+    background: rgba(88, 166, 255, 0.2);
+    color: var(--primary-color);
+    animation: pulse 1.5s infinite;
+}
+.status-badge.done {
+    background: rgba(46, 160, 67, 0.2);
+    color: var(--accent-color);
+}
+.status-badge.error {
+    background: rgba(248, 81, 73, 0.2);
+    color: var(--danger-color);
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
 /* Select Input */
 select {
     width: 100%;

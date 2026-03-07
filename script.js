@@ -6,9 +6,9 @@ const workspace = document.getElementById('workspace');
 const qualitySlider = document.getElementById('qualitySlider');
 const qualityValue = document.getElementById('qualityValue');
 const formatSelect = document.getElementById('formatSelect');
-const scaleSlider = document.getElementById('scaleSlider');
-const scaleValue = document.getElementById('scaleValue');
-const dimensionHint = document.getElementById('dimensionHint');
+const targetSizeSelect = document.getElementById('targetSizeSelect');
+const customSizeInput = document.getElementById('customSizeInput');
+const targetStatusText = document.getElementById('targetStatusText');
 
 const originalPreview = document.getElementById('originalPreview');
 const compressedPreview = document.getElementById('compressedPreview');
@@ -60,25 +60,21 @@ function setupEventListeners() {
     });
 
     // Settings Changes
-    qualitySlider.addEventListener('input', (e) => {
-        qualityValue.textContent = `${Math.round(e.target.value * 100)}%`;
-        if (originalImage) compressImage();
-    });
-
-    scaleSlider.addEventListener('input', (e) => {
-        const percent = Math.round(e.target.value * 100);
-        scaleValue.textContent = `${percent}%`;
-
-        if (originalImage) {
-            const newWidth = Math.round(originalImage.width * e.target.value);
-            const newHeight = Math.round(originalImage.height * e.target.value);
-            dimensionHint.textContent = `${newWidth} x ${newHeight} px`;
-            compressImage();
+    targetSizeSelect.addEventListener('change', (e) => {
+        if (e.target.value === 'custom') {
+            customSizeInput.classList.add('visible');
+        } else {
+            customSizeInput.classList.remove('visible');
+            if (originalImage) startTargetCompression();
         }
     });
 
+    customSizeInput.addEventListener('change', () => {
+        if (originalImage) startTargetCompression();
+    });
+
     formatSelect.addEventListener('change', () => {
-        if (originalImage) compressImage();
+        if (originalImage) startTargetCompression();
     });
 
     // Buttons
@@ -102,75 +98,136 @@ function handleFile(file) {
     reader.onload = (e) => {
         originalPreview.src = e.target.result;
 
-        // Load into an Image object for canvas manipulation
         originalImage = new Image();
         originalImage.onload = () => {
             // Set Original Dimensions in UI
             originalDimensionsVal.textContent = `${originalImage.width} x ${originalImage.height} px`;
-
-            // Set initial scale hint
-            scaleSlider.value = 1;
-            scaleValue.textContent = "100%";
-            dimensionHint.textContent = `${originalImage.width} x ${originalImage.height} px`;
 
             // Show workspace
             uploadZone.style.display = 'none';
             workspace.classList.remove('hidden');
 
             // Initial Compression
-            compressImage();
+            startTargetCompression();
         };
         originalImage.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
 
-function compressImage() {
-    const quality = parseFloat(qualitySlider.value);
-    const scale = parseFloat(scaleSlider.value);
+function getTargetKB() {
+    if (targetSizeSelect.value === 'custom') {
+        const val = parseFloat(customSizeInput.value);
+        if (isNaN(val) || val <= 0) return originalFileSize / 1024; // Default to original if invalid
+        return val;
+    }
+    return parseFloat(targetSizeSelect.value);
+}
+
+async function startTargetCompression() {
+    clearStatus();
+    targetStatusText.textContent = "Compressing...";
+    targetStatusText.className = "status-badge working";
+
+    // Disable inputs while working
+    targetSizeSelect.disabled = true;
+    formatSelect.disabled = true;
+
+    try {
+        await findOptimalCompression();
+        targetStatusText.textContent = "Success";
+        targetStatusText.className = "status-badge done";
+    } catch (e) {
+        console.error(e);
+        targetStatusText.textContent = "Best Effort";
+        targetStatusText.className = "status-badge error";
+    } finally {
+        targetSizeSelect.disabled = false;
+        formatSelect.disabled = false;
+    }
+}
+
+function processCanvasToBlob(canvas, mimeType, quality) {
+    return new Promise((resolve) => {
+        canvas.toBlob(resolve, mimeType, quality);
+    });
+}
+
+async function findOptimalCompression() {
+    const targetBytes = getTargetKB() * 1024;
     const mimeType = formatSelect.value;
 
-    // Create an off-screen canvas
+    // Start with max quality and scale
+    let currentQuality = 0.9;
+    let currentScale = 1.0;
+
+    let bestBlob = null;
+    let bestBlobSize = Infinity;
+    let bestDimensions = { w: originalImage.width, h: originalImage.height };
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    // Apply scale for width and height
-    canvas.width = Math.round(originalImage.width * scale);
-    canvas.height = Math.round(originalImage.height * scale);
+    // Recursive-like loop to step down quality then scale until target is met
+    for (let attempts = 0; attempts < 15; attempts++) {
+        canvas.width = Math.round(originalImage.width * currentScale);
+        canvas.height = Math.round(originalImage.height * currentScale);
+        ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
 
-    // Draw the image to canvas at new dimensions
-    ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+        const blob = await processCanvasToBlob(canvas, mimeType, currentQuality);
 
-    // Compress to Blob
-    canvas.toBlob((blob) => {
-        if (!blob) return;
-
-        // If the resulting "compressed" blob is actually larger than the original file,
-        // and the user didn't change the dimensions, just use the original file to prevent inflation.
-        let finalBlob = blob;
-        let finalMimeType = mimeType;
-
-        if (blob.size > originalFileSize && scale === 1 && quality > 0.7) {
-            finalBlob = currentFile;
-            finalMimeType = currentFile.type;
-            // Update format select to reflect we kept the original format
-            formatSelect.value = finalMimeType;
+        // Track the best (smallest) blob we produce in case we never hit the target exactly
+        if (blob && Math.abs(blob.size - targetBytes) < Math.abs(bestBlobSize - targetBytes)) {
+            bestBlob = blob;
+            bestBlobSize = blob.size;
+            bestDimensions = { w: canvas.width, h: canvas.height };
         }
 
-        // Cleanup old blob URL
-        if (compressedBlobUrl) URL.revokeObjectURL(compressedBlobUrl);
+        if (blob && blob.size <= targetBytes) {
+            // Target achieved!
+            bestBlob = blob;
+            bestBlobSize = blob.size;
+            bestDimensions = { w: canvas.width, h: canvas.height };
+            break;
+        }
 
-        // Create new preview
-        compressedBlobUrl = URL.createObjectURL(finalBlob);
-        compressedPreview.src = compressedBlobUrl;
+        // Strategy to reduce size:
+        if (currentQuality > 0.3) {
+            // Lower quality first (has less visual impact than shrinking resolution)
+            currentQuality -= 0.15;
+        } else {
+            // Quality is as low as we want to go, start shrinking dimensions
+            currentScale -= 0.15;
+            // Reset quality slightly so we aren't at purely abysmal 0.1 quality on a tiny image
+            currentQuality = 0.7;
+        }
 
-        // Update Stats
-        updateStats(finalBlob.size);
+        // Sanity break
+        if (currentScale <= 0.1) break;
+    }
 
-        // Update Compressed Dimensions UI
-        compressedDimensionsVal.textContent = `${canvas.width} x ${canvas.height} px`;
+    // Finish building UI with the best blob
+    // If even our best compressed blob is somehow LARGER than the original (inflated)
+    let finalBlob = bestBlob;
+    let finalMimeType = mimeType;
+    if (finalBlob && finalBlob.size > originalFileSize && targetBytes >= originalFileSize) {
+        finalBlob = currentFile;
+        finalMimeType = currentFile.type;
+        formatSelect.value = finalMimeType;
+        bestDimensions = { w: originalImage.width, h: originalImage.height };
+    }
 
-    }, mimeType, quality);
+    if (compressedBlobUrl) URL.revokeObjectURL(compressedBlobUrl);
+    compressedBlobUrl = URL.createObjectURL(finalBlob);
+    compressedPreview.src = compressedBlobUrl;
+
+    updateStats(finalBlob.size);
+    compressedDimensionsVal.textContent = `${bestDimensions.w} x ${bestDimensions.h} px`;
+}
+
+function clearStatus() {
+    targetStatusText.textContent = "Ready";
+    targetStatusText.className = "status-badge";
 }
 
 function updateStats(compressedSize) {
