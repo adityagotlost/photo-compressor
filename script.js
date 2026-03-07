@@ -211,11 +211,44 @@ async function findOptimalCompression() {
     let closestBlob = null, closestScore = Infinity;
     let closestDimensions = { w: baseW, h: baseH };
 
+    // Iterative step-down scaling for higher quality than native drawImage
+    function stepDownImage(ctx, targetW, targetH) {
+        let curW = originalImage.width;
+        let curH = originalImage.height;
+
+        // If we only need a minor scale down, just draw it directly
+        if (targetW >= curW * 0.8) {
+            canvas.width = targetW;
+            canvas.height = targetH;
+            ctx.clearRect(0, 0, targetW, targetH);
+            ctx.drawImage(originalImage, 0, 0, targetW, targetH);
+            return;
+        }
+
+        // Create an off-screen canvas for stepping down
+        const tmpCanvas = document.createElement('canvas');
+        const tmpCtx = tmpCanvas.getContext('2d');
+
+        tmpCanvas.width = curW;
+        tmpCanvas.height = curH;
+        tmpCtx.drawImage(originalImage, 0, 0);
+
+        // Halve the dimensions iteratively until we are close to the target
+        while (curW * 0.5 > targetW) {
+            curW = Math.floor(curW * 0.5);
+            curH = Math.floor(curH * 0.5);
+            tmpCtx.drawImage(tmpCanvas, 0, 0, curW * 2, curH * 2, 0, 0, curW, curH);
+        }
+
+        // Draw the final stepped-down image to the main canvas at the exact target size
+        canvas.width = targetW;
+        canvas.height = targetH;
+        ctx.clearRect(0, 0, targetW, targetH);
+        ctx.drawImage(tmpCanvas, 0, 0, curW, curH, 0, 0, targetW, targetH);
+    }
+
     async function tryEncode(w, h, q) {
-        canvas.width = w;
-        canvas.height = h;
-        ctx.clearRect(0, 0, w, h);
-        ctx.drawImage(originalImage, 0, 0, w, h);
+        stepDownImage(ctx, w, h);
 
         // Only apply sharpening if we downscaled by a significant margin (less than 80% of original scale)
         if (w < originalImage.width * 0.8) {
