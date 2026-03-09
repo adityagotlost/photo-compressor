@@ -1,0 +1,17 @@
+{
+    "name": "Sleek Photo Compressor",
+    "short_name": "Compressor",
+    "description": "Fast, private, browser-based image compression",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#3b82f6",
+    "icons": [
+        {
+            "src": "icon.svg",
+            "type": "image/svg+xml",
+            "sizes": "any",
+            "purpose": "any maskable"
+        }
+    ]
+}

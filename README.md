@@ -9,6 +9,7 @@ A fast, privacy-first, browser-based image compression tool. No uploads, no serv
 ## ✨ Features
 
 - 🔒 **100% Private** — Images never leave your browser; all processing is done client-side
+- 📱 **Offline App (PWA)** — Install the tool as a standalone app to use fully offline without any network
 - ⚡ **Binary Search Compression** — Uses a smart two-phase binary search algorithm to hit your target file size in milliseconds
 - 🎯 **Target File Size** — Set a precise target size (e.g. 10 KB, 100 KB) with quick-select preset pills
 - 🖼️ **Output Format Selection** — Export as **JPEG**, **WebP** (recommended), or **PNG**
