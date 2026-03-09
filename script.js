@@ -216,11 +216,20 @@ async function findOptimalCompression() {
         let curW = originalImage.width;
         let curH = originalImage.height;
 
+        const fillBackground = () => {
+            if (mimeType === 'image/jpeg') {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, targetW, targetH);
+            } else {
+                ctx.clearRect(0, 0, targetW, targetH);
+            }
+        };
+
         // If we only need a minor scale down, just draw it directly
         if (targetW >= curW * 0.8) {
             canvas.width = targetW;
             canvas.height = targetH;
-            ctx.clearRect(0, 0, targetW, targetH);
+            fillBackground();
             ctx.drawImage(originalImage, 0, 0, targetW, targetH);
             return;
         }
@@ -243,7 +252,7 @@ async function findOptimalCompression() {
         // Draw the final stepped-down image to the main canvas at the exact target size
         canvas.width = targetW;
         canvas.height = targetH;
-        ctx.clearRect(0, 0, targetW, targetH);
+        fillBackground();
         ctx.drawImage(tmpCanvas, 0, 0, curW, curH, 0, 0, targetW, targetH);
     }
 
@@ -258,22 +267,25 @@ async function findOptimalCompression() {
         return canvasToBlob(canvas, mimeType, q);
     }
 
-    for (let i = 0; i < 7; i++) {
-        const mid = parseFloat(((lo + hi) / 2).toFixed(3));
-        const blob = await tryEncode(baseW, baseH, mid);
-        if (!blob) break;
+    // Skip Phase 1 for PNG, as it doesn't support quality parameter
+    if (mimeType !== 'image/png') {
+        for (let i = 0; i < 7; i++) {
+            const mid = parseFloat(((lo + hi) / 2).toFixed(3));
+            const blob = await tryEncode(baseW, baseH, mid);
+            if (!blob) break;
 
-        const score = Math.abs(blob.size - targetBytes);
-        if (score < closestScore) { closestBlob = blob; closestScore = score; closestDimensions = { w: baseW, h: baseH }; }
+            const score = Math.abs(blob.size - targetBytes);
+            if (score < closestScore) { closestBlob = blob; closestScore = score; closestDimensions = { w: baseW, h: baseH }; }
 
-        if (blob.size <= targetBytes) {
-            bestUnderBlob = blob;
-            bestUnderDimensions = { w: baseW, h: baseH };
-            lo = mid; // go higher quality
-        } else {
-            hi = mid; // go lower quality
+            if (blob.size <= targetBytes) {
+                bestUnderBlob = blob;
+                bestUnderDimensions = { w: baseW, h: baseH };
+                lo = mid; // go higher quality
+            } else {
+                hi = mid; // go lower quality
+            }
+            if (score < targetBytes * 0.03) break; // within 3% — good enough, stop early
         }
-        if (score < targetBytes * 0.03) break; // within 3% — good enough, stop early
     }
 
     // --- Phase 2: Only if quality alone couldn't hit target — binary search on scale ---
